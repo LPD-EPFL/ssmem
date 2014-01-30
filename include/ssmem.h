@@ -2,8 +2,8 @@
 #ifndef _SSMEM_H_
 #define _SSMEM_H_
 
-#include "utils.h"
-#include "atomic_ops.h"
+#include <stdio.h>
+#include <stdint.h>
 
 /* **************************************************************************************** */
 /* parameters */
@@ -11,6 +11,12 @@
 
 #define SSMEM_GC_FREE_SET_SIZE 16380
 #define SSMEM_DEFAULT_MEM_SIZE (32 * 1024 * 1024L)
+
+/* **************************************************************************************** */
+/* help definitions */
+/* **************************************************************************************** */
+#define ALIGNED(N) __attribute__ ((aligned (N)))
+#define CACHE_LINE_SIZE 64
 
 /* **************************************************************************************** */
 /* data structures used by ssmem */
@@ -96,7 +102,7 @@ void ssmem_gc_thread_init(ssmem_allocator_t* a, int id);
 /* terminate the system (all allocators) and free all memory */
 void ssmem_term();
 /* terminate the allocator a and free all its memory
-/* This function should NOT be used if the memory allocated by this allocator
+ * This function should NOT be used if the memory allocated by this allocator
  * might have been freed (and is still in use) by other allocators */
 void ssmem_alloc_term(ssmem_allocator_t* a);
 
@@ -114,6 +120,29 @@ void ssmem_free_list_print(ssmem_allocator_t* a);
 void ssmem_collected_list_print(ssmem_allocator_t* a);
 void ssmem_available_list_print(ssmem_allocator_t* a);
 void ssmem_all_list_print(ssmem_allocator_t* a, int id);
+
+
+/* **************************************************************************************** */
+/* platform-specific definitions */
+/* **************************************************************************************** */
+
+#if defined(__x86_64__)
+#  define CAS_U64(a,b,c) __sync_val_compare_and_swap(a,b,c)
+#  define FAI_U32(a) __sync_fetch_and_add(a,1)
+#endif
+
+#if defined(__sparc__)
+#  include <atomic.h>
+#  define CAS_U64(a,b,c) atomic_cas_64(a,b,c)
+#  define FAI_U32(a) (atomic_inc_32_nv(a)-1)
+#endif
+
+#if defined(__tile__)
+#  include <arch/atomic.h>
+#  include <arch/cycle.h>
+#  define CAS_U64(a,b,c) arch_atomic_val_compare_and_exchange(a,b,c)
+#  define FAI_U32(a) arch_atomic_increment(a)
+#endif
 
 
 #endif /* _SSMEM_H_ */

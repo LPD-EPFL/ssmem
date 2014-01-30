@@ -24,6 +24,8 @@
 #endif
 
 #include "ssmem.h"
+#include "utils.h"
+#include "atomic_ops.h"
 
 /* ################################################################### *
  * GLOBALS
