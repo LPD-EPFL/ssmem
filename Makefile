@@ -73,7 +73,7 @@ all: libssmem.a ssmem_test
 default: ssmem_test
 
 ssmem.o: $(SRC)/ssmem.c 
-	$(CC) $(VER_FLAGS) -c $(SRC)/ssmem.c $(CFLAGS) -I./$(INCLUDE) -L./ 
+	$(CC) $(VER_FLAGS) -c $(SRC)/ssmem.c $(CFLAGS) -I./$(INCLUDE)
 
 ifeq ($(MEASUREMENTS),1)
 VER_FLAGS += -DDO_TIMINGS
