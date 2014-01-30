@@ -36,13 +36,7 @@ int num_allocs = 16;
 int num_threads = 1;
 int num_elements = 2048;
 int duration = 1000;
-double filling_rate = 0.5;
-double update_rate = 0.1;
-double put_rate = 0.1;
-double get_rate = 0.9;
-int print_vals_num = 0;
-size_t  pf_vals_num = 8191;
-
+int do_nothing = 0;
 int seed = 0;
 __thread unsigned long * seeds;
 uint32_t rand_max;
@@ -157,19 +151,31 @@ test(void* thread)
   size_t ops = 0;
   barrier_cross(&barrier_global);
 
-  while (stop == 0) 
+  if (do_nothing)
     {
-      ops++;
-      int spot = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % rand_max);
-      int a    = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % num_allocs);
-
-      size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
-      *obj = *(size_t*) array[spot];
-      size_t* old = (size_t*) SWAP_U64((uint64_t*) (array + spot), (uint64_t) obj);
-
-      ssmem_free(alloc + a, (void*) old);
+      while (stop == 0) 
+	{
+	  ops++;
+	  int a    = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % num_allocs);
+	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
+	  ssmem_free(alloc + a, (void*) obj);
+	}
     }
+  else
+    {
+      while (stop == 0) 
+	{
+	  ops++;
+	  int spot = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % rand_max);
+	  int a    = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % num_allocs);
 
+	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
+	  *obj = *(size_t*) array[spot];
+	  size_t* old = (size_t*) SWAP_U64((uint64_t*) (array + spot), (uint64_t) obj);
+
+	  ssmem_free(alloc + a, (void*) old);
+	}
+    }
 
   __sync_fetch_and_add(&total_ops, ops);
 
@@ -203,14 +209,11 @@ main(int argc, char **argv)
   struct option long_options[] = {
     // These options don't set a flag
     {"help",                      no_argument,       NULL, 'h'},
+    {"nothing",                   no_argument,       NULL, 't'},
     {"duration",                  required_argument, NULL, 'd'},
     {"initial-size",              required_argument, NULL, 'i'},
     {"num-threads",               required_argument, NULL, 'n'},
     {"range",                     required_argument, NULL, 'r'},
-    {"update-rate",               required_argument, NULL, 'u'},
-    {"num-buckets",               required_argument, NULL, 'b'},
-    {"print-vals",                required_argument, NULL, 'v'},
-    {"vals-pf",                   required_argument, NULL, 'f'},
     {NULL, 0, NULL, 0}
   };
 
@@ -220,7 +223,7 @@ main(int argc, char **argv)
   while(1) 
     {
       i = 0;
-      c = getopt_long(argc, argv, "hAf:d:i:n:r:s:u:m:a:l:p:b:v:f:", long_options, &i);
+      c = getopt_long(argc, argv, "hAf:d:i:n:r:s:u:m:a:l:p:b:v:f:t", long_options, &i);
 		
       if(c == -1)
 	break;
@@ -246,19 +249,13 @@ main(int argc, char **argv)
 		 "  -d, --duration <int>\n"
 		 "        Test duration in milliseconds\n"
 		 "  -i, --initial-size <int>\n"
-		 "        Number of elements to insert before test\n"
+		 "        Number of allocators\n"
 		 "  -n, --num-threads <int>\n"
 		 "        Number of threads\n"
 		 "  -r, --range <int>\n"
-		 "        Range of integer values inserted in set\n"
-		 "  -p, --put-rate <int>\n"
-		 "        Percentage of put update transactions (should be less than percentage of updates)\n"
-		 "  -b, --num-buckets <int>\n"
-		 "        Number of initial buckets (stronger than -l)\n"
-		 "  -v, --print-vals <int>\n"
-		 "        When using detailed profiling, how many values to print.\n"
-		 "  -f, --val-pf <int>\n"
-		 "        When using detailed profiling, how many values to keep track of.\n"
+		 "        Range of integer values inserted in set for testing\n"
+		 "  -t, --nothing\n"
+		 "        Do nothing but alloc/free\n"
 		 );
 	  exit(0);
 	case 'd':
@@ -270,14 +267,11 @@ main(int argc, char **argv)
 	case 'n':
 	  num_threads = atoi(optarg);
 	  break;
+	case 't':
+	  do_nothing = 1;
+	  break;
 	case 'r':
 	  range = atol(optarg);
-	  break;
-	case 'v':
-	  print_vals_num = atoi(optarg);
-	  break;
-	case 'f':
-	  pf_vals_num = pow2roundup(atoi(optarg)) - 1;
 	  break;
 	case '?':
 	default:
@@ -288,7 +282,7 @@ main(int argc, char **argv)
 
   num_allocs = initial;
 
-  printf("# allocs %d / range: %zu\n", num_allocs, range);
+  printf("# allocs %d / range: %zu / do nothing: %d\n", num_allocs, range, do_nothing);
 
   struct timeval start, end;
   struct timespec timeout;

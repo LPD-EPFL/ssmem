@@ -179,7 +179,7 @@ extern "C" {
 #  define CACHE_LINE_SIZE 64
 #  define NOP_DURATION 2
 
-#  define USE_HYPERTRHEADS 1
+#  define USE_HYPERTRHEADS 0
 
 #  if USE_HYPERTRHEADS == 1
   static uint8_t  __attribute__ ((unused)) the_cores[] = {
