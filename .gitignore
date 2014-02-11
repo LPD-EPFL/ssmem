@@ -1,4 +1,5 @@
 *.o
 *~
+/core
 /libssmem.a
 /ssmem_test
