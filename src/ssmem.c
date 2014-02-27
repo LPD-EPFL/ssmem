@@ -5,6 +5,8 @@
  *
  */
 #include "ssmem.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <assert.h>
 
@@ -84,6 +86,9 @@ ssmem_alloc_init(ssmem_allocator_t* a, size_t size, int id)
   a->collected_set_num = 0;
 
   a->available_set_list = NULL;
+
+  a->released_mem_list = NULL;
+  a->released_num = 0;
 }
 
 /* 
@@ -99,6 +104,22 @@ ssmem_list_node_new(void* mem, ssmem_list_t* next)
   mc->next = next;
 
   return mc;
+}
+
+/* 
+ *
+ */
+static ssmem_released_t*
+ssmem_released_node_new(void* mem, ssmem_released_t* next)
+{
+  ssmem_released_t* rel;
+  rel = (ssmem_released_t*) malloc(sizeof(ssmem_released_t));
+  assert(rel != NULL);
+  rel->mem = mem;
+  rel->next = next;
+  rel->ts_set = NULL;
+
+  return rel;
 }
 
 /* 
@@ -244,6 +265,17 @@ ssmem_alloc_term(ssmem_allocator_t* a)
       ssmem_free_set_t* nxt = fs->set_next;
       ssmem_free_set_free(fs);
       fs = nxt;
+    }
+
+  /* freeing the relased memory */
+  ssmem_released_t* rel = a->released_mem_list;
+  while (rel != NULL)
+    {
+      ssmem_released_t* next = rel->next;
+      free(rel->mem);
+      free(rel->ts_set);
+      free(rel);
+      rel = next;
     }
 
  }
@@ -396,6 +428,44 @@ ssmem_mem_reclaim(ssmem_allocator_t* a)
   ssmem_free_set_t* fs_cur = a->free_set_list;
   ssmem_free_set_t* fs_nxt = fs_cur->set_next;
 
+  if (__builtin_expect(a->released_num > 0, 0))
+    {
+      size_t* ts_ref = fs_cur->ts_set;
+      ssmem_released_t* rel_cur = NULL;
+      ssmem_released_t* rel_nxt = a->released_mem_list;
+      int gc_rest = 0;
+      int num_cannot_release = 0;
+      int num_release = 0;
+      while (rel_nxt != NULL)
+	{
+	  if (gc_rest || ssmem_ts_compare(ts_ref, rel_nxt->ts_set))
+	    {
+	      gc_rest = 1;
+	      if (rel_cur == NULL)
+		{
+		  a->released_mem_list = rel_nxt->next;
+		}
+	      else
+		{
+		  rel_cur->next = rel_nxt->next;
+		}
+	      num_release++;
+	      ssmem_released_t* rel_free = rel_nxt;
+	      rel_nxt = rel_nxt->next;
+	      free(rel_free->mem);
+	      free(rel_free->ts_set);
+	      free(rel_free);
+	    }
+	  else
+	    {
+	      num_cannot_release++;
+	      rel_cur = rel_nxt;
+	      rel_nxt = rel_nxt->next;
+	    }
+	}
+      a->released_num = num_cannot_release;
+    }
+
   int gced_num = 0;
 
   if (fs_nxt == NULL)		/* need at least 2 sets to compare */
@@ -460,6 +530,20 @@ ssmem_free(ssmem_allocator_t* a, void* obj)
   fs->set[fs->curr++] = (uintptr_t) obj;
   ssmem_ts_next();
 }
+
+/* 
+ *
+ */
+inline void 
+ssmem_release(ssmem_allocator_t* a, void* obj)
+{
+  ssmem_released_t* rel_list = a->released_mem_list;
+  ssmem_released_t* rel = ssmem_released_node_new(obj, rel_list);
+  rel->ts_set = ssmem_ts_set_collect(rel->ts_set);
+  a->released_num++;
+  a->released_mem_list = rel;
+}
+
 
 /* 
  *

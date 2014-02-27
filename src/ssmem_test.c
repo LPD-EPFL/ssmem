@@ -37,6 +37,7 @@ int num_threads = 1;
 int num_elements = 2048;
 int duration = 1000;
 int do_nothing = 0;
+int do_releases = 0;
 int seed = 0;
 __thread unsigned long * seeds;
 uint32_t rand_max;
@@ -127,6 +128,7 @@ typedef struct thread_data
 
 volatile uint64_t total_ops = 0;
 uintptr_t* array;
+uintptr_t* array_obj;
 
 void*
 test(void* thread) 
@@ -157,6 +159,14 @@ test(void* thread)
 	{
 	  ops++;
 	  int a    = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % num_allocs);
+	  int b    = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % num_allocs);
+	  
+	  if (do_releases && (ops & 31) == 0)
+	    {
+	      size_t* obj_rel = (size_t*) malloc(sizeof(uintptr_t));
+	      ssmem_release(alloc + b, (void*) obj_rel);
+	    }
+
 	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
 	  ssmem_free(alloc + a, (void*) obj);
 	}
@@ -168,6 +178,14 @@ test(void* thread)
 	  ops++;
 	  int spot = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % rand_max);
 	  int a    = (my_random(&(seeds[0]), &(seeds[1]), &(seeds[2])) % num_allocs);
+
+	  if (do_releases && (ops & 127) == 0)
+	    {
+	      size_t* obj_rel = (size_t*) malloc(sizeof(uintptr_t));
+	      *obj_rel = *(size_t*) array_obj[spot];
+	      size_t* old_rel = (size_t*) SWAP_U64((uint64_t*) (array_obj + spot), (uint64_t) obj_rel);
+	      ssmem_release(alloc + a, (void*) old_rel);
+	    }
 
 	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
 	  *obj = *(size_t*) array[spot];
@@ -193,6 +211,11 @@ test(void* thread)
 		{
 		  printf("!! %d = %zu\n", i, v);
 		}
+	      v  = *(size_t*) array_obj[i];
+	      if (v != i)
+		{
+		  printf("!! %d = %zu (release mem)\n", i, v);
+		}
 	    }
 	}
     }
@@ -210,6 +233,7 @@ main(int argc, char **argv)
     // These options don't set a flag
     {"help",                      no_argument,       NULL, 'h'},
     {"nothing",                   no_argument,       NULL, 't'},
+    {"release",                   no_argument,       NULL, 'e'},
     {"duration",                  required_argument, NULL, 'd'},
     {"initial-size",              required_argument, NULL, 'i'},
     {"num-threads",               required_argument, NULL, 'n'},
@@ -223,7 +247,7 @@ main(int argc, char **argv)
   while(1) 
     {
       i = 0;
-      c = getopt_long(argc, argv, "hAf:d:i:n:r:s:u:m:a:l:p:b:v:f:t", long_options, &i);
+      c = getopt_long(argc, argv, "heAf:d:i:n:r:s:u:m:a:l:p:b:v:f:t", long_options, &i);
 		
       if(c == -1)
 	break;
@@ -256,6 +280,8 @@ main(int argc, char **argv)
 		 "        Range of integer values inserted in set for testing\n"
 		 "  -t, --nothing\n"
 		 "        Do nothing but alloc/free\n"
+		 "  -e, --release\n"
+		 "        Addtionally do mallocs and ssmem_releases in some rounds\n"
 		 );
 	  exit(0);
 	case 'd':
@@ -270,6 +296,9 @@ main(int argc, char **argv)
 	case 't':
 	  do_nothing = 1;
 	  break;
+	case 'e':
+	  do_releases = 1;
+	  break;
 	case 'r':
 	  range = atol(optarg);
 	  break;
@@ -282,7 +311,7 @@ main(int argc, char **argv)
 
   num_allocs = initial;
 
-  printf("# allocs %d / range: %zu / do nothing: %d\n", num_allocs, range, do_nothing);
+  printf("# allocs %d / range: %zu / do releases: %d / do nothing: %d\n", num_allocs, range, do_releases, do_nothing);
 
   struct timeval start, end;
   struct timespec timeout;
@@ -294,6 +323,8 @@ main(int argc, char **argv)
 
   array = (uintptr_t*) calloc(range, sizeof(uintptr_t));
   assert(array != NULL);
+  array_obj = (uintptr_t*) calloc(range, sizeof(uintptr_t));
+  assert(array_obj != NULL);
   uintptr_t* objs = (uintptr_t*) calloc(range, sizeof(uintptr_t));
   assert(objs != NULL);
 
@@ -302,6 +333,10 @@ main(int argc, char **argv)
     {
       objs[j] = j;
       array[j] = (uintptr_t) (objs + j);
+      size_t* s = (size_t*) malloc(sizeof(size_t));
+      assert(s != NULL);
+      *s = j;
+      array_obj[j] = (uintptr_t) s;
     }
 
   rand_max = range;
@@ -362,7 +397,11 @@ main(int argc, char **argv)
 
   free(array);
   free(objs);
-
+  for (j = 0; j < range; j++)
+    {
+      free((void*) array_obj[j]);
+    }
+  free(array_obj);
   double throughput = total_ops * 1000.0 / duration;
   printf("#txs %-4d(%10.0f = %.3f M\n", num_threads, throughput, throughput / 1.e6);
 
