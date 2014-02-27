@@ -50,7 +50,7 @@ ssmem_gc_thread_init(ssmem_allocator_t* a, int id)
 	}
       while (CAS_U64((volatile uint64_t*) &ssmem_ts_list, (uint64_t) a->ts->next, (uint64_t) a->ts) != (uint64_t) a->ts->next);
   
-      FAI_U32(&ssmem_ts_list_len);
+       __attribute__ ((unused)) uint32_t null = FAI_U32(&ssmem_ts_list_len);
     }
 }
 

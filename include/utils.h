@@ -319,7 +319,7 @@ extern "C" {
   }
 #elif defined(__sparc__)
   static inline ticks getticks(){
-    ticks ret;
+    ticks ret = 0;
     __asm__ __volatile__ ("rd %%tick, %0" : "=r" (ret) : "0" (ret));
     return ret;
   }
