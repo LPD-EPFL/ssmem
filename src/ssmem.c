@@ -113,11 +113,11 @@ static ssmem_released_t*
 ssmem_released_node_new(void* mem, ssmem_released_t* next)
 {
   ssmem_released_t* rel;
-  rel = (ssmem_released_t*) malloc(sizeof(ssmem_released_t));
+  rel = (ssmem_released_t*) malloc(sizeof(ssmem_released_t) + (ssmem_ts_list_len * sizeof(size_t)));
   assert(rel != NULL);
   rel->mem = mem;
   rel->next = next;
-  rel->ts_set = NULL;
+  rel->ts_set = (size_t*) (rel + 1);
 
   return rel;
 }
@@ -338,6 +338,21 @@ ssmem_ts_set_print(size_t* set)
   printf("]\n");
 }
 
+#if !defined(PREFETCHW)
+#  if defined(__x86_64__) | defined(__i386__)
+#    define PREFETCHW(x) asm volatile("prefetchw %0" :: "m" (*(unsigned long *)(x))) /* write */
+#  elif defined(__sparc__)
+#    define PREFETCHW(x) __builtin_prefetch((const void*) (x), 1, 3)
+#  elif defined(__tile__)
+#    include <tmc/alloc.h>
+#    include <tmc/udn.h>
+#    include <tmc/sync.h>
+#    define PREFETCHW(x) tmc_mem_prefetch ((x), 64)
+#  else
+#    warning "You need to define PREFETCHW(x) for your architecture"
+#  endif
+#endif
+
 /* 
  * 
  */
@@ -351,6 +366,7 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
   if (cs != NULL)
     {
       m = (void*) cs->set[--cs->curr];
+      PREFETCHW(m);
 
       if (cs->curr <= 0)
 	{
@@ -453,7 +469,7 @@ ssmem_mem_reclaim(ssmem_allocator_t* a)
 	      ssmem_released_t* rel_free = rel_nxt;
 	      rel_nxt = rel_nxt->next;
 	      free(rel_free->mem);
-	      free(rel_free->ts_set);
+	      /* free(rel_free->ts_set); */
 	      free(rel_free);
 	    }
 	  else
