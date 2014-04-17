@@ -9,7 +9,11 @@
 /* parameters */
 /* **************************************************************************************** */
 
-#define SSMEM_GC_FREE_SET_SIZE 507
+#if defined(__sparc__)
+#  define SSMEM_GC_FREE_SET_SIZE 16379
+#else
+#  define SSMEM_GC_FREE_SET_SIZE 507
+#endif
 #define SSMEM_DEFAULT_MEM_SIZE (32 * 1024 * 1024L)
 
 /* **************************************************************************************** */
@@ -110,6 +114,7 @@ typedef struct ssmem_list
 /* ssmem interface */
 /* **************************************************************************************** */
 
+/* initialize an allocator with the default number of objects */
 void ssmem_alloc_init(ssmem_allocator_t* a, size_t size, int id);
 /* initialize an allocator and give the number of objects in free_sets */
 void ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size, int id);

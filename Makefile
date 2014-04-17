@@ -57,6 +57,12 @@ CC = tile-gcc
 LDFLAGS += -ltmc
 endif
 
+ifeq ($(UNAME), ol-collab1)
+PLATFORM = T44
+CC = /usr/sfw/bin/gcc
+CFLAGS += -m64
+endif
+
 ifeq ($(PLATFORM), )
 PLATFORM = DEFAULT
 CC = gcc

@@ -195,7 +195,8 @@ test(void* thread)
 	}
     }
 
-  __sync_fetch_and_add(&total_ops, ops);
+  /* __sync_fetch_and_add(&total_ops, ops); */
+  FAA_U64(&total_ops, ops);
 
   /* printf("[%2d] stoping...\n", ID); */
   barrier_cross(&barrier);
