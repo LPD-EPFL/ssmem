@@ -56,30 +56,35 @@ ssmem_gc_thread_init(ssmem_allocator_t* a, int id)
 
 ssmem_free_set_t* ssmem_free_set_new(size_t size, ssmem_free_set_t* next);
 
+
 /* 
- * initialize allocator a
+ * initialize allocator a with a custom free_set_size
  * If the thread is not subscribed to the list of timestamps (used for GC),
  * additionally subscribe the thread to the list
  */
 void
-ssmem_alloc_init(ssmem_allocator_t* a, size_t size, int id)
+ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size, int id)
 {
-   ssmem_num_allocators++;
-   ssmem_allocator_list = ssmem_list_node_new((void*) a, ssmem_allocator_list);
+  ssmem_num_allocators++;
+  ssmem_allocator_list = ssmem_list_node_new((void*) a, ssmem_allocator_list);
 
- /* printf("[ALLOC] initializing %zu bytes = %zu KB\n", size, size / 1024); */
+  if (id == 0)
+    {
+      printf("[ALLOC] initializing allocator with fs size: %zu objects\n", free_set_size);
+    }
   a->mem = (void*) memalign(CACHE_LINE_SIZE, size);
   assert(a->mem != NULL);
 
   a->mem_curr = 0;
   a->mem_size = size;
   a->tot_size = size;
+  a->fs_size = free_set_size;
 
   a->mem_chunks = ssmem_list_node_new(a->mem, NULL);
 
   ssmem_gc_thread_init(a, id);
 
-  a->free_set_list = ssmem_free_set_new(SSMEM_GC_FREE_SET_SIZE, NULL);
+  a->free_set_list = ssmem_free_set_new(a->fs_size, NULL);
   a->free_set_num = 1;
 
   a->collected_set_list = NULL;
@@ -90,6 +95,19 @@ ssmem_alloc_init(ssmem_allocator_t* a, size_t size, int id)
   a->released_mem_list = NULL;
   a->released_num = 0;
 }
+
+/* 
+ * initialize allocator a with the default SSMEM_GC_FREE_SET_SIZE
+ * If the thread is not subscribed to the list of timestamps (used for GC),
+ * additionally subscribe the thread to the list
+ */
+void
+ssmem_alloc_init(ssmem_allocator_t* a, size_t size, int id)
+{
+  return ssmem_alloc_init_fs_size(a, size, SSMEM_GC_FREE_SET_SIZE, id);
+}
+
+
 
 /* 
  * 
@@ -536,7 +554,7 @@ ssmem_free(ssmem_allocator_t* a, void* obj)
       ssmem_mem_reclaim(a);
 
       /* printf("[ALLOC] free_set is full, doing GC / size of garbage pointers: %10zu = %zu KB\n", garbagep, garbagep / 1024); */
-      ssmem_free_set_t* fs_new = ssmem_free_set_get_avail(a, SSMEM_GC_FREE_SET_SIZE, a->free_set_list);
+      ssmem_free_set_t* fs_new = ssmem_free_set_get_avail(a, a->fs_size, a->free_set_list);
       a->free_set_list = fs_new;
       a->free_set_num++;
       fs = fs_new;

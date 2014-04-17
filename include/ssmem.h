@@ -33,6 +33,7 @@ typedef struct ALIGNED(CACHE_LINE_SIZE) ssmem_allocator
       size_t mem_curr;		/* pointer to the next addrr to be allocated */
       size_t mem_size;		/* size of mem chunk */
       size_t tot_size;		/* total memory that the allocator uses */
+      size_t fs_size;		/* size (in objects) of free_sets */
       struct ssmem_list* mem_chunks; /* list of mem chunks (used to free the mem) */
 
       struct ssmem_ts* ts;	/* timestamp object associated with the allocator */
@@ -109,8 +110,9 @@ typedef struct ssmem_list
 /* ssmem interface */
 /* **************************************************************************************** */
 
-/* initialize an allocator */
 void ssmem_alloc_init(ssmem_allocator_t* a, size_t size, int id);
+/* initialize an allocator and give the number of objects in free_sets */
+void ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size, int id);
 /* explicitely subscribe to the list of threads in order to used timestamps for GC */
 void ssmem_gc_thread_init(ssmem_allocator_t* a, int id);
 /* terminate the system (all allocators) and free all memory */
