@@ -18,7 +18,7 @@ UNAME := $(shell uname -n)
 
 ifeq ($(UNAME), lpd48core)
 PLATFORM = OPTERON
-CC = gcc
+CC = gcc-4.8
 PLATFORM_NUMA=1
 endif
 
