@@ -25,7 +25,29 @@
 
 #include "ssmem.h"
 #include "utils.h"
-#include "atomic_ops.h"
+
+/* atomic swap u64 */
+#ifdef __sparc__
+#  include <atomic.h>
+#  define SWAP_U64(a, b) atomic_swap_64(a,b)
+#elif defined(__x86_64__)
+#  include <xmmintrin.h>
+static inline uint64_t 
+swap_uint64(volatile uint64_t* target,  uint64_t x) 
+{
+  __asm__ __volatile__("xchgq %0,%1"
+		       :"=r" ((uint64_t) x)
+		       :"m" (*(volatile uint64_t *)target), "0" ((uint64_t) x)
+		       :"memory");
+
+  return x;
+}
+#  define SWAP_U64(a, b) swap_uint64(a, b)
+#elif defined(__tile__)
+#  include <arch/atomic.h>
+#  include <arch/cycle.h>
+#  define SWAP_U64(a,b) arch_atomic_exchange(a,b)
+#endif
 
 /* ################################################################### *
  * GLOBALS
