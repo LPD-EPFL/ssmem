@@ -141,7 +141,8 @@ test(void* thread)
 
   /* printf("[%2d] starting:: %d allocs\n", ID, num_allocs); */
 
-  ssmem_allocator_t* alloc = (ssmem_allocator_t*) memalign(CACHE_LINE_SIZE, num_allocs * sizeof(ssmem_allocator_t));
+  ssmem_allocator_t* alloc = (ssmem_allocator_t*) memalign(CACHE_LINE_SIZE, 
+							   num_allocs * sizeof(ssmem_allocator_t));
   assert(alloc != NULL);
 
   int i;
@@ -195,8 +196,7 @@ test(void* thread)
 	}
     }
 
-  /* __sync_fetch_and_add(&total_ops, ops); */
-  FAA_U64(&total_ops, ops);
+  __sync_fetch_and_add(&total_ops, ops);
 
   /* printf("[%2d] stoping...\n", ID); */
   barrier_cross(&barrier);
@@ -248,7 +248,7 @@ main(int argc, char **argv)
   while(1) 
     {
       i = 0;
-      c = getopt_long(argc, argv, "heAf:d:i:n:r:s:u:m:a:l:p:b:v:f:t", long_options, &i);
+      c = getopt_long(argc, argv, "hed:i:n:r:", long_options, &i);
 		
       if(c == -1)
 	break;
@@ -262,11 +262,9 @@ main(int argc, char **argv)
 	  /* Flag is automatically set */
 	  break;
 	case 'h':
-	  printf("intset -- STM stress test "
-		 "(linked list)\n"
-		 "\n"
+	  printf("ssmem_test -- ssmem allocator stress test \n"
 		 "Usage:\n"
-		 "  intset [options...]\n"
+		 "  ./ssmem_test [options...]\n"
 		 "\n"
 		 "Options:\n"
 		 "  -h, --help\n"
@@ -282,7 +280,7 @@ main(int argc, char **argv)
 		 "  -t, --nothing\n"
 		 "        Do nothing but alloc/free\n"
 		 "  -e, --release\n"
-		 "        Addtionally do mallocs and ssmem_releases in some rounds\n"
+		 "        Additionally do mallocs and ssmem_releases in some rounds\n"
 		 );
 	  exit(0);
 	case 'd':
@@ -312,7 +310,8 @@ main(int argc, char **argv)
 
   num_allocs = initial;
 
-  printf("# allocs %d / range: %zu / do releases: %d / do nothing: %d\n", num_allocs, range, do_releases, do_nothing);
+  printf("# allocators: %d / threads: %d / range: %zu / do releases: %d / do nothing: %d\n", 
+	 num_allocs, num_threads, range, do_releases, do_nothing);
 
   struct timeval start, end;
   struct timespec timeout;
@@ -404,7 +403,7 @@ main(int argc, char **argv)
     }
   free(array_obj);
   double throughput = total_ops * 1000.0 / duration;
-  printf("#txs %-4d(%10.0f = %.3f M\n", num_threads, throughput, throughput / 1.e6);
+  printf("#throughput with %-4d threads: %10.0f = %.3f M\n", num_threads, throughput, throughput / 1.e6);
 
   pthread_exit(NULL);
   return 0;
