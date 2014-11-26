@@ -52,7 +52,7 @@
 /* data structures used by ssmem */
 /* **************************************************************************************** */
 
-/* a ssmem allocator */
+/* an ssmem allocator */
 typedef struct ALIGNED(CACHE_LINE_SIZE) ssmem_allocator
 {
   union
