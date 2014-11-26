@@ -65,7 +65,7 @@ typedef struct ALIGNED(CACHE_LINE_SIZE) ssmem_ts
     struct
     {
       size_t version;
-      uint8_t id;
+      size_t id;
       struct ssmem_ts* next;
     };
   };

@@ -682,7 +682,7 @@ ssmem_ts_list_print()
   ssmem_ts_t* cur = ssmem_ts_list;
   while (cur != NULL)
     {
-      printf("(id: %-2d / version: %zu) -> ", cur->id, cur->version);
+      printf("(id: %-2zu / version: %zu) -> ", cur->id, cur->version);
       cur = cur->next;
     }
 
