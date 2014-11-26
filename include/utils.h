@@ -1,11 +1,5 @@
 #ifndef _UTILS_H_INCLUDED_
 #define _UTILS_H_INCLUDED_
-//some utility functions
-//#define _GNU_SOURCE
-//#define USE_MUTEX_LOCKS
-//#define ADD_PADDING
-//#define OPTERON
-//#define OPTERON_OPTIMIZE
 
 #include <stdlib.h>
 #include <stdio.h>
