@@ -54,7 +54,9 @@
 #else
 #  include <emmintrin.h>
 #  include <xmmintrin.h>
-#  include <numa.h>
+#  ifdef NUMA
+#    include <numa.h>
+#  endif
 #endif
 #include <pthread.h>
 
