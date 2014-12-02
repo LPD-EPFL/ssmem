@@ -318,7 +318,6 @@ ssmem_alloc_term(ssmem_allocator_t* a)
     {
       ssmem_released_t* next = rel->next;
       free(rel->mem);
-      free(rel->ts_set);
       free(rel);
       rel = next;
     }

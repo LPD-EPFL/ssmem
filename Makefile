@@ -3,7 +3,7 @@ INCLUDE = include
 BENCH = benchmarks
 PROF = prof
 
-CFLAGS = -O3 -Wall
+CFLAGS = -O0 -Wall
 LDFLAGS = -lm -lrt -lpthread -lssmem
 VER_FLAGS = -D_GNU_SOURCE
 
