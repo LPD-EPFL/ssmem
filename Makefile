@@ -69,6 +69,7 @@ CC = gcc
 endif
 
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
+CFLAGS += -DNUMA
 LDFLAGS += -lnuma
 endif 
 
