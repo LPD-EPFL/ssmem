@@ -10,7 +10,7 @@ You can create multiple allocators with ssmem, however, each allocator can handl
 * Related Publications: ssmem was developed for:
   Asynchronized Concurrency: The Secret to Scaling Concurrent Search Data Structures,
   Tudor David, Rachid Guerraoui, Vasileios Trigonakis (alphabetical order),
-  ASPLOS '14
+  ASPLOS '15
 
 
 Installation
