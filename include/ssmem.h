@@ -39,9 +39,23 @@
 /* parameters */
 /* **************************************************************************************** */
 
-#define SSMEM_GC_FREE_SET_SIZE 507
-#define SSMEM_DEFAULT_MEM_SIZE (32 * 1024 * 1024L)
+#define SSMEM_GC_FREE_SET_SIZE 507 /* mem objects to free before doing a GC pass */
+#define SSMEM_DEFAULT_MEM_SIZE (32 * 1024 * 1024L) /* memory-chunk size that each threads
+						    gives to the allocators */
 
+/* increase the thread-local timestamp of activity on each ssmem_alloc() and/or ssmem_free() 
+   call. If enabled (>0), after some memory is alloced and/or freed, the thread should not 
+   access ANY ssmem-protected memory that was read (the reference were taken) before the
+   current alloc or free invocation. If disabled (0), the program should employ manual 
+   SSMEM_SAFE_TO_RECLAIM() calls to indicate when the thread does not hold any ssmem-allocated
+   memory references. */
+
+#define SSMEM_TS_INCR_ON_NONE   0
+#define SSMEM_TS_INCR_ON_BOTH   1
+#define SSMEM_TS_INCR_ON_ALLOC  2
+#define SSMEM_TS_INCR_ON_FREE   3
+
+#define SSMEM_TS_INCR_ON        SSMEM_TS_INCR_ON_BOTH
 /* **************************************************************************************** */
 /* help definitions */
 /* **************************************************************************************** */
@@ -160,6 +174,12 @@ inline void ssmem_free(ssmem_allocator_t* a, void* obj);
 
 /* release some memory to the OS using allocator a */
 inline void ssmem_release(ssmem_allocator_t* a, void* obj);
+
+/* increment the thread-local activity counter. Invoking this function suggests that
+ no memory references to ssmem-allocated memory are held by the current thread beyond
+this point. */
+inline void ssmem_ts_next();
+#define SSMEM_SAFE_TO_RECLAIM() ssmem_ts_next()
 
 
 /* debug/help functions */

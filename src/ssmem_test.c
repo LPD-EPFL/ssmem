@@ -222,6 +222,9 @@ test(void* thread)
 
 	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
 	  ssmem_free(alloc + a, (void*) obj);
+#if SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_NONE
+	  SSMEM_SAFE_TO_RECLAIM();
+#endif
 	}
     }
   else
@@ -245,6 +248,9 @@ test(void* thread)
 	  size_t* old = (size_t*) SWAP_U64((uint64_t*) (array + spot), (uint64_t) obj);
 
 	  ssmem_free(alloc + a, (void*) old);
+#if SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_NONE
+	  SSMEM_SAFE_TO_RECLAIM();
+#endif
 	}
     }
 

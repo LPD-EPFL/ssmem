@@ -339,7 +339,7 @@ ssmem_term()
 /* 
  * 
  */
-static inline void 
+inline void 
 ssmem_ts_next()
 {
   ssmem_ts_local->version++;
@@ -438,7 +438,9 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
       a->mem_curr += size;
     }
 
+#if SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_ALLOC || SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_BOTH
   ssmem_ts_next();
+#endif
   return m;
 }
 
@@ -588,7 +590,9 @@ ssmem_free(ssmem_allocator_t* a, void* obj)
     }
   
   fs->set[fs->curr++] = (uintptr_t) obj;
+#if SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_FREE || SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_BOTH
   ssmem_ts_next();
+#endif
 }
 
 /* 
