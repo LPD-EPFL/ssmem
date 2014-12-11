@@ -42,7 +42,15 @@ In short, you can:
 
 Refer to `ssmem.h` for more details and operations. 
 
-Details
--------
+### Memory reclaimation 
 
-Each thread holds a version/timestamp number. This timestamp is incremented every time the thread takes some steps with ssmem (i.e., either allocates, or frees memory). ssmem batches multiple frees together (in a free set) and once the set is full, it tries to garbage collect memory. The free set is timestamped with a vector clock (an array of the timestamps from all threads). The garbage collection (reclamation of the freed memory) decides if a free set is safe to release (i.e., whether all threads had made progress since it was timestamped) and if it is, it makes the memory of this (and of "older") free sets available to the allocator.
+Each thread holds a version/timestamp number. By default, this timestamp is incremented every time the thread takes some steps with ssmem (i.e., either allocates, or frees memory). ssmem batches multiple frees together (in a free set) and once the set is full, it tries to garbage collect memory. The free set is timestamped with a vector clock (an array of the timestamps from all threads). The garbage collection (reclamation of the freed memory) decides if a free set is safe to release (i.e., whether all threads had made progress since it was timestamped) and if it is, it makes the memory of this (and of "older") free sets available to the allocator.
+
+Nevertheless, in certain cases, allocating and/or freeing memory might not be the correct place to increase the local timestamp. In a sense, incrementing the timestamp is some sort of barrier: by incrementing the timestamp the thread indicates that it does not hold any earlier references to ssmem-allocated memory. Accordingly, if the software allocting and/or freeing memory is not the correct "barrier" place for an application, ssmem includes a flag (in `ssmem.h`) to control when the timestamp is incremented.
+
+In brief, the flag `SSMEM_TS_INCR_ON` can takes the following values (if the value is changed, recompilation is required):
+  * `SSMEM_TS_INCR_ON_NONE`: the timestamp is never automatically incemented. Applications should manually include `SSMEM_SAFE_TO_RECLAIM()` calls at points when it is safe (for other threads) to reclaim memory,
+  * `SSMEM_TS_INCR_ON_BOTH`: the timestamp is incremented both upon allocating and freeing memory,
+  * `SSMEM_TS_INCR_ON_ALLOC`: the timestamp is incremented only upon allocating memory,
+  * `SSMEM_TS_INCR_ON_FREE`: the timestamp is incremented only upon freeing memory,
+
