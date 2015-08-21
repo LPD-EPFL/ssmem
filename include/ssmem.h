@@ -39,6 +39,7 @@
 /* parameters */
 /* **************************************************************************************** */
 
+#define SSMEM_TRANSPARENT_HUGE_PAGES 0 /* Use or not Linux transparent huge pages */
 #define SSMEM_GC_FREE_SET_SIZE 507 /* mem objects to free before doing a GC pass */
 #define SSMEM_DEFAULT_MEM_SIZE (32 * 1024 * 1024L) /* memory-chunk size that each threads
 						    gives to the allocators */

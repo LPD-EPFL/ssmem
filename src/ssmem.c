@@ -99,7 +99,13 @@ ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size
     {
       printf("[ALLOC] initializing allocator with fs size: %zu objects\n", free_set_size);
     }
+
+#if SSMEM_TRANSPARENT_HUGE_PAGES
+  int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, size);
+  assert(ret == 0);
+#else
   a->mem = (void*) memalign(CACHE_LINE_SIZE, size);
+#endif
   assert(a->mem != NULL);
 
   a->mem_curr = 0;
@@ -425,7 +431,13 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
       if ((a->mem_curr + size) >= a->mem_size)
 	{
 	  /* printf("[ALLOC] out of mem, need to allocate\n"); */
-	  a->mem = (void*) memalign(CACHE_LINE_SIZE, a->mem_size);
+#if SSMEM_TRANSPARENT_HUGE_PAGES
+	  int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, size);
+	  assert(ret == 0);
+#else
+	  a->mem = (void*) memalign(CACHE_LINE_SIZE, size);
+#endif
+	  assert(a->mem != NULL);
 	  assert(a->mem != NULL);
 	  a->mem_curr = 0;
       
