@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <assert.h>
+#include <string.h>
 
 ssmem_ts_t* ssmem_ts_list = NULL;
 volatile uint32_t ssmem_ts_list_len = 0;
@@ -107,6 +108,9 @@ ssmem_alloc_init_fs_size(ssmem_allocator_t* a, size_t size, size_t free_set_size
   a->mem = (void*) memalign(CACHE_LINE_SIZE, size);
 #endif
   assert(a->mem != NULL);
+#if SSMEM_ZERO_MEMORY == 1
+  memset(a->mem, 0, size);
+#endif
 
   a->mem_curr = 0;
   a->mem_size = size;
@@ -432,13 +436,16 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
 	{
 	  /* printf("[ALLOC] out of mem, need to allocate\n"); */
 #if SSMEM_TRANSPARENT_HUGE_PAGES
-	  int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, size);
+	  int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, a->mem_size);
 	  assert(ret == 0);
 #else
-	  a->mem = (void*) memalign(CACHE_LINE_SIZE, size);
+	  a->mem = (void*) memalign(CACHE_LINE_SIZE, a->mem_size);
 #endif
 	  assert(a->mem != NULL);
-	  assert(a->mem != NULL);
+#if SSMEM_ZERO_MEMORY == 1
+	  memset(a->mem, 0, a->mem_size);
+#endif
+
 	  a->mem_curr = 0;
       
 	  a->tot_size += a->mem_size;
