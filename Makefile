@@ -68,6 +68,17 @@ PLATFORM = DEFAULT
 CC = gcc
 endif
 
+ifdef MYPLATFORM
+PLATFORM=$(MYPLATFORM)
+$(info Platform set to $(MYPLATFORM))
+endif
+
+ifeq ($(PLATFORM), DEFAULT)
+$(info PLATFORM set to DEFAULT. If you want to change it, pass MYPLATFORM=<platform>)
+$(info Possible platforms: OPTERON, XEON2, COREi7, XEON, NIAGARA, TILERA, T44)
+$(info ---------------------------)
+endif
+
 ifeq ($(PLATFORM_NUMA),1) #give PLATFORM_NUMA=1 for NUMA
 CFLAGS += -DNUMA
 LDFLAGS += -lnuma
