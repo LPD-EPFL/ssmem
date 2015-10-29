@@ -187,7 +187,6 @@ test(void* thread)
 {
   thread_data_t* td = (thread_data_t*) thread;
   uint8_t ID = td->id;
-  set_cpu(the_cores[ID]);
 
   seeds = seed_rand();
 
@@ -286,8 +285,6 @@ test(void* thread)
 int
 main(int argc, char **argv) 
 {
-  set_cpu(the_cores[0]);
-    
   struct option long_options[] = {
     // These options don't set a flag
     {"help",                      no_argument,       NULL, 'h'},
