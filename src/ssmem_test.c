@@ -242,8 +242,30 @@ test(void* thread)
 	      ssmem_release(alloc + a, (void*) old_rel);
 	    }
 
+	  /* Mem. reclaimation correctness test ------------------------------------------ */
+	  // Idea: Array `array` contains memory objects that contain the value of the index
+	  // of each array spot (i.e., *array[i] == i).
+	  // On each iteration, threads read an array spot in `ref`.
+	  // Their goal is to dereference (get the contents of `ref` and write
+	  // the value in a newly allocated object `obj`. They then atomically swap
+	  // `obj` with the current memory object in the array spot they are accessing.
+	  // Naturally, the atomic swap return the previous memory object in the array
+	  // spot. This `old` object is of course freed to avoid memory leaks. Due to
+	  // this freeing, we might have a data race on dereferencing `ref` if the
+	  // allocator does not handle memory reclaimation.
+
+	  // Possible problem: Thread-1 first fetches `ref` from `spot` and later deferences 
+	  // `ref`. Between these two memory accesses, another thread might use the same
+	  // `spot`, thus freeing the memory that `ref` points at. This memory can now
+	  // (without memory reclaiamation) be reused by an allocation, that will write a
+	  // new, possibly different value in `*ref`. When Thread-1 dereferences `ref`, it
+	  // it will get an incorrect value for its newly allocated `obj`.
+
+	  /* ----------------------------------------------------------------------------- */
 	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
-	  *obj = *(size_t*) array[spot];
+	  size_t* ref = (size_t*) array[spot];
+	  *obj = *ref;
+
 	  size_t* old = (size_t*) SWAP_U64((uint64_t*) (array + spot), (uint64_t) obj);
 
 	  ssmem_free(alloc + a, (void*) old);
