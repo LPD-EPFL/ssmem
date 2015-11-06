@@ -56,6 +56,8 @@
 #include "ssmem.h"
 #include "utils.h"
 
+#define USE_MALLOC 0 		/* use malloc instead of ssmem */
+
 /* atomic swap u64 */
 #ifdef __sparc__
 #  include <atomic.h>
@@ -262,13 +264,22 @@ test(void* thread)
 	  // it will get an incorrect value for its newly allocated `obj`.
 
 	  /* ----------------------------------------------------------------------------- */
+#if USE_MALLOC == 1
+	  size_t* obj = (size_t*) malloc(sizeof(uintptr_t));
+#else
 	  size_t* obj = (size_t*) ssmem_alloc(alloc + a, sizeof(uintptr_t));
+#endif
 	  size_t* ref = (size_t*) array[spot];
 	  *obj = *ref;
 
 	  size_t* old = (size_t*) SWAP_U64((uint64_t*) (array + spot), (uint64_t) obj);
 
+#if USE_MALLOC == 1
+	  free((void*) old);
+#else
 	  ssmem_free(alloc + a, (void*) old);
+#endif
+
 #if SSMEM_TS_INCR_ON == SSMEM_TS_INCR_ON_NONE
 	  SSMEM_SAFE_TO_RECLAIM();
 #endif
@@ -402,14 +413,14 @@ main(int argc, char **argv)
   assert(array != NULL);
   array_obj = (uintptr_t*) calloc(range, sizeof(uintptr_t));
   assert(array_obj != NULL);
-  uintptr_t* objs = (uintptr_t*) calloc(range, sizeof(uintptr_t));
-  assert(objs != NULL);
 
   int j;
   for (j = 0; j < range; j++)
     {
-      objs[j] = j;
-      array[j] = (uintptr_t) (objs + j);
+      uintptr_t* obj = (uintptr_t*) malloc(sizeof(uintptr_t));
+      assert(obj != NULL);
+      *obj = j;
+      array[j] = (uintptr_t) obj;
       size_t* s = (size_t*) malloc(sizeof(size_t));
       assert(s != NULL);
       *s = j;
@@ -473,7 +484,6 @@ main(int argc, char **argv)
   free(tds);
 
   free(array);
-  free(objs);
   for (j = 0; j < range; j++)
     {
       free((void*) array_obj[j]);
