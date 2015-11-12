@@ -434,7 +434,30 @@ ssmem_alloc(ssmem_allocator_t* a, size_t size)
     {
       if ((a->mem_curr + size) >= a->mem_size)
 	{
-	  /* printf("[ALLOC] out of mem, need to allocate\n"); */
+#if SSMEM_MEM_SIZE_DOUBLE == 1
+	  a->mem_size <<= 1;
+	  if (a->mem_size > SSMEM_MEM_SIZE_MAX)
+	    {
+	      a->mem_size = SSMEM_MEM_SIZE_MAX;
+	    }
+#endif
+	  /* printf("[ALLOC] out of mem, need to allocate (chunk = %llu MB)\n", */
+	  /* 	 a->mem_size / (1LL<<20)); */
+	  if (size > a->mem_size)
+	    {
+	      /* printf("[ALLOC] asking for large mem. chunk\n"); */
+	      while (a->mem_size < size)
+		{
+		  if (a->mem_size > SSMEM_MEM_SIZE_MAX)
+		    {
+		      fprintf(stderr, "[ALLOC] asking for memory chunk larger than max (%llu MB) \n",
+			      SSMEM_MEM_SIZE_MAX / (1024 * 1024LL));
+		      assert(a->mem_size <= SSMEM_MEM_SIZE_MAX);
+		    }
+		  a->mem_size <<= 1;
+		}
+	      /* printf("[ALLOC] new mem size chunk is %llu MB\n", a->mem_size / (1024 * 1024LL)); */
+	    }
 #if SSMEM_TRANSPARENT_HUGE_PAGES
 	  int ret = posix_memalign(&a->mem, CACHE_LINE_SIZE, a->mem_size);
 	  assert(ret == 0);
@@ -506,50 +529,36 @@ static void ssmem_ts_set_print_no_newline(size_t* set);
 static int
 ssmem_mem_reclaim(ssmem_allocator_t* a)
 {
-  ssmem_free_set_t* fs_cur = a->free_set_list;
-  ssmem_free_set_t* fs_nxt = fs_cur->set_next;
-
   if (__builtin_expect(a->released_num > 0, 0))
     {
-      size_t* ts_ref = fs_cur->ts_set;
-      ssmem_released_t* rel_cur = NULL;
-      ssmem_released_t* rel_nxt = a->released_mem_list;
-      int gc_rest = 0;
-      int num_cannot_release = 0;
-      int num_release = 0;
-      while (rel_nxt != NULL)
+      ssmem_released_t* rel_cur = a->released_mem_list;
+      ssmem_released_t* rel_nxt = rel_cur->next;
+
+      if (rel_nxt != NULL && ssmem_ts_compare(rel_cur->ts_set, rel_nxt->ts_set))
 	{
-	  if (gc_rest || ssmem_ts_compare(ts_ref, rel_nxt->ts_set))
+	  rel_cur->next = NULL;
+	  a->released_num = 1;
+	  /* find and collect the memory */
+	  do
 	    {
-	      gc_rest = 1;
-	      if (rel_cur == NULL)
-		{
-		  a->released_mem_list = rel_nxt->next;
-		}
-	      else
-		{
-		  rel_cur->next = rel_nxt->next;
-		}
-	      num_release++;
-	      ssmem_released_t* rel_free = rel_nxt;
-	      rel_nxt = rel_nxt->next;
-	      free(rel_free->mem);
-	      /* free(rel_free->ts_set); */
-	      free(rel_free);
-	    }
-	  else
-	    {
-	      num_cannot_release++;
 	      rel_cur = rel_nxt;
+	      free(rel_cur->mem);
+	      free(rel_cur);
 	      rel_nxt = rel_nxt->next;
 	    }
+	  while (rel_nxt != NULL);
 	}
-      a->released_num = num_cannot_release;
     }
 
+  ssmem_free_set_t* fs_cur = a->free_set_list;
+  if (fs_cur->ts_set == NULL)
+    {
+      return 0;
+    }
+  ssmem_free_set_t* fs_nxt = fs_cur->set_next;
   int gced_num = 0;
 
-  if (fs_nxt == NULL)		/* need at least 2 sets to compare */
+  if (fs_nxt == NULL || fs_nxt->ts_set == NULL)		/* need at least 2 sets to compare */
     {
       return 0;
     }
@@ -623,8 +632,12 @@ ssmem_release(ssmem_allocator_t* a, void* obj)
   ssmem_released_t* rel_list = a->released_mem_list;
   ssmem_released_t* rel = ssmem_released_node_new(obj, rel_list);
   rel->ts_set = ssmem_ts_set_collect(rel->ts_set);
-  a->released_num++;
+  int rn = ++a->released_num;
   a->released_mem_list = rel;
+  if (rn >= SSMEM_GC_RLSE_SET_SIZE)
+    {
+      ssmem_mem_reclaim(a);
+    }
 }
 
 

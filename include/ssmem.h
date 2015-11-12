@@ -42,8 +42,14 @@
 #define SSMEM_TRANSPARENT_HUGE_PAGES 0 /* Use or not Linux transparent huge pages */
 #define SSMEM_ZERO_MEMORY            0 /* Initialize allocated memory to 0 or not */
 #define SSMEM_GC_FREE_SET_SIZE 507 /* mem objects to free before doing a GC pass */
+#define SSMEM_GC_RLSE_SET_SIZE 3   /* num of released object before doing a GC pass */
 #define SSMEM_DEFAULT_MEM_SIZE (32 * 1024 * 1024L) /* memory-chunk size that each threads
 						    gives to the allocators */
+#define SSMEM_MEM_SIZE_DOUBLE  1 /* if the allocator is out of memory, should it allocate
+				  a 2x larger chunk than before? (in order to stop asking
+				 for memory again and again */
+#define SSMEM_MEM_SIZE_MAX     (4 * 1024 * 1024 * 1024LL) /* absolute max chunk size 
+							   (e.g., if doubling is 1) */
 
 /* increase the thread-local timestamp of activity on each ssmem_alloc() and/or ssmem_free() 
    call. If enabled (>0), after some memory is alloced and/or freed, the thread should not 
@@ -57,7 +63,7 @@
 #define SSMEM_TS_INCR_ON_ALLOC  2
 #define SSMEM_TS_INCR_ON_FREE   3
 
-#define SSMEM_TS_INCR_ON        SSMEM_TS_INCR_ON_BOTH
+#define SSMEM_TS_INCR_ON        SSMEM_TS_INCR_ON_FREE
 /* **************************************************************************************** */
 /* help definitions */
 /* **************************************************************************************** */
