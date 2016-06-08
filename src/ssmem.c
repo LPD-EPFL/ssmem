@@ -164,7 +164,7 @@ ssmem_list_node_new(void* mem, ssmem_list_t* next)
 /* 
  *
  */
-static ssmem_released_t*
+inline ssmem_released_t*
 ssmem_released_node_new(void* mem, ssmem_released_t* next)
 {
   ssmem_released_t* rel;
@@ -526,7 +526,7 @@ static void ssmem_ts_set_print_no_newline(size_t* set);
 /* 
  *
  */
-static int
+int
 ssmem_mem_reclaim(ssmem_allocator_t* a)
 {
   if (__builtin_expect(a->released_num > 0, 0))
